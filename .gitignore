@@ -2,29 +2,176 @@
 .DS_Store
 .AppleDouble
 .LSOverride
+Icon?
+._*
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-workspace
+*.sublime-project
 
-# Python
+# Python - Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.env/
+.python-version
+
+# Python - Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Python - C extensions
+*.c
+*.cpp
+!src/**/*.c
+!src/**/*.cpp
+
+# Python - Distribution / packaging
 .Python
-venv/
-ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python - PyInstaller
+*.manifest
+*.spec
+
+# Python - Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Python - Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytest_cache/
+
+# Python - Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Python - Linting
+.ruff_cache/
+.pylint.d/
+
+# Python - Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Python - IPython
+profile_default/
+ipython_config.py
+
+# Python - pyenv
+.python-version
+
+# Python - PEP 582
+__pypackages__/
+
+# Python - Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Python - SageMath parsed files
+*.sage.py
+
+# Python - Spyder project settings
+.spyderproject
+.spyproject
+
+# Python - Rope project settings
+.ropeproject
+
+# Python - mkdocs documentation
+/site
+
+# Python - Environments
 .env
+.env.local
+.env.*.local
+*.env
 
 # Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Logs
 *.log
+logs/
 
 # Temporary files
 *.tmp
 *.temp
+tmp/
+temp/
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite3
+
+# Secrets (절대 커밋하지 말 것)
+secrets/
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# AI/ML Models (용량이 크므로 별도 관리)
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.hef
+models/*.pt
+models/*.pth
+!models/.gitkeep
+
+# Data files (용량이 크므로 별도 관리)
+data/*.csv
+data/*.parquet
+data/*.feather
+!data/.gitkeep
+!data/sample_*.csv
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
