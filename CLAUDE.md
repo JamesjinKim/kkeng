@@ -7,12 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a research planning repository for developing an **AI-based Autonomous Wastewater Treatment System** using Feed-forward control. The project aims to implement unmanned wastewater treatment automation by predicting influent water quality and proactively controlling treatment processes.
 
 **Core Technologies:**
-- **Bidirectional LSTM with Attention**: Time-series prediction of water quality parameters (COD, BOD, SS, DO, pH)
+- **TCN (Temporal Convolutional Network)**: Time-series prediction of water quality parameters (COD, BOD, SS, T-N, T-P)
+  - Hailo-8L NPU가 LSTM을 지원하지 않아 TCN으로 대체 (2025-12 변경)
+  - Dilated Causal Conv1D 기반, NPU 가속으로 0.8~1.2초 추론
 - **Particle Swarm Optimization (PSO)**: Optimization of control parameters (chemical dosing, pump schedules, blower speed, membrane operation)
+  - CPU 실행 (~45초, 30분 주기)
 - **Feed-forward Control**: Proactive control based on influent water quality predictions (vs. traditional reactive feedback control)
 
 **Target Implementation:**
-- Gold Gang Engineering (금강엔지니어링) MBR wastewater treatment facility
+- Gold Gang Engineering (금강엔지니어링) EC-MBR wastewater treatment facility
 - Processing capacity: 200-500 m³/day
 - Integration with existing PLC-based SCADA systems
 
@@ -20,13 +23,15 @@ This is a research planning repository for developing an **AI-based Autonomous W
 
 ### Core Documentation Files
 
-- **`project.md`**: Complete R&D proposal document (Korean)
-  - Research background, objectives, methodology
-  - Sensor network specifications based on actual operational data
-  - AI model architecture (Bi-LSTM with Attention)
-  - Feed-forward control logic and interlock specifications
-  - 12-month implementation roadmap
-  - Budget breakdown and economic analysis
+- **`PRD.md`**: 통합 PRD 문서 (v2.0)
+  - 제품 비전, 연구 배경, KPI
+  - 4-Layer 시스템 아키텍처
+  - TCN 예측 모델 상세 (NPU 호환)
+  - PSO 최적화 엔진
+  - 제어 시스템 (Feed-forward + Feedback)
+  - 센싱 레이어, 엣지 인프라 (3-Tier)
+  - 개발 일정, 비용, 리스크 대응
+  - EC-MBR 특화 기술 (전극 수명, 동적막)
 
 - **`operation_table.md`**: Operation sequence table
   - PLC control sequences for each system/tank
@@ -34,29 +39,10 @@ This is a research planning repository for developing an **AI-based Autonomous W
   - Level sensor triggers and automated responses
   - Based on actual operational manual from Gold Gang Engineering
 
-- **`AI적용방법.md`**: AI implementation methodology
-  - Integration architecture combining Bi-LSTM and PSO
-  - Real-time operational flow (5 steps)
-  - System-specific applications (DAF, Membrane Tank, etc.)
-  - Phase-by-phase implementation roadmap
-  - Risk management and safety protocols
-
 - **`presentation.html`**: Research proposal presentation (20 slides)
   - HTML-based slide deck for stakeholder presentations
   - Includes economic analysis, technical specifications, and expected outcomes
   - Optimized for PDF export with print styles
-
-- **`TechArc.md`**: EC-MBR AI 시스템 기술 아키텍처
-  - 4-Layer 아키텍처 (Sensing → Analytics → Control → Edge Infrastructure)
-  - EC-MBR 특화 모듈 (전극 수명 예측, 동적막 최적화, 전기응집-MBR 통합 제어)
-  - Feed-forward 6시간 선행 예측 제어 상세 구현
-  - Safety Layer 6층 검증 체계
-
-- **`PRD.md`**: 소프트웨어 개발 PRD (신호테크놀로지 담당)
-  - 기능 요구사항 (FR-SEN, FR-AI, FR-PSO, FR-CTL, FR-SAF, FR-EDGE)
-  - 기술 스택 명세 (TensorFlow, InfluxDB, Modbus TCP, MQTT)
-  - 하드웨어 사양 (Raspberry Pi 5 + Hailo-8L NPU)
-  - 장비별 인터락 상세 (부록 A)
 
 - **`각조및 장비의 기능표.md`**: 처리시설 장비 기능표
   - 10개 조(Tank) 역할 및 유지관리 포인트
@@ -75,11 +61,11 @@ This is a research planning repository for developing an **AI-based Autonomous W
 ```
 Sensor Data Collection (1-min cycle)
     ↓
-Bi-LSTM with Attention Prediction (5-min cycle)
+TCN Prediction (5-min cycle, NPU 가속 0.8~1.2초)
     ↓
 Situation Assessment
     ↓
-PSO Optimization (30-min cycle)
+PSO Optimization (30-min cycle, CPU ~45초)
     ↓
 PLC Control Execution
 ```
@@ -95,15 +81,27 @@ Influent → Flow Equalization Tank → Reaction Tank (PAC) → pH Adjustment (N
 
 ### 3. AI Model Specifications
 
-**Bi-LSTM Model:**
+**TCN Model (NPU 호환):**
+- **Architecture**: Dilated Causal Conv1D × 7 blocks (dilation: 1,2,4,8,16,32,64)
 - **Input**: 25 variables (15 sensor data + 7 derived parameters + 3 temporal features)
-- **Output**: 5 predictions (6-hour ahead COD, BOD, SS, T-N + optimal blower airflow)
+- **Output**: 15 predictions (5 수질 × 3 시점: 1h/3h/6h ahead COD, BOD, SS, T-N, T-P)
 - **Performance Targets**: MAPE < 10%, R² > 0.85, Directional accuracy > 90%
+- **Inference Time**: 0.8~1.2초 (Hailo-8L NPU)
+- **Model Size**: ~4.5MB (INT8 양자화)
 
-**PSO Optimization:**
+**TCN vs LSTM 비교:**
+
+| 항목 | TCN (채택) | Bi-LSTM (미채택) |
+|------|-----------|------------------|
+| NPU 호환 | 완벽 지원 | 미지원 |
+| 추론 시간 | 0.8~1.2초 | 8~12초 (CPU) |
+| 병렬 처리 | 가능 | 순차 처리 |
+
+**PSO Optimization (CPU 실행):**
 - **Objective**: Minimize (chemical cost + energy cost) while maintaining water quality
 - **Variables**: Chemical dosing (PAC, Polymer, NaOH), pump schedules, blower RPM, membrane operation timing
 - **Constraints**: Legal discharge standards, equipment limits, predicted water quality thresholds
+- **Execution**: CPU (20 particles × 15 iterations, ~45초)
 
 ### 4. Critical Interlock Conditions
 
@@ -118,9 +116,9 @@ Based on actual PLC sequences documented in `operation_table.md`:
 
 ### 5. Control Modes (4단계)
 
-| 모드 | 조건 | Bi-LSTM | PSO | 송풍기 |
-|------|------|---------|-----|--------|
-| **정상 AI** | 수질 안정, 신뢰도 높음 | 5분 주기 | 30분 주기 | PSO 최적값 |
+| 모드 | 조건 | TCN | PSO | 송풍기 |
+|------|------|-----|-----|--------|
+| **정상 AI** | 수질 안정, 신뢰도 높음 | 5분 주기 (NPU) | 30분 주기 (CPU) | PSO 최적값 |
 | **안전** | 이상 감지, 센서 불확실 | 10분 주기 | 중단 | DO 2.5 mg/L 고정 |
 | **비상** | 수질 기준 초과 위험 | 중단 | 중단 | 최대 가동 |
 | **Eco** | 저부하, 야간 | 30분 주기 | 1시간 주기 | 간헐 포기 |
@@ -136,8 +134,7 @@ Based on actual PLC sequences documented in `operation_table.md`:
 
 **Understanding System Operations:**
 1. Start with `operation_table.md` for control sequences
-2. Review `project.md` sections 4-6 for technical specifications
-3. Check `AI적용방법.md` for AI implementation details
+2. Review `PRD.md` for comprehensive technical specifications
 
 **Modifying Documentation:**
 - When editing tables in `operation_table.md`, maintain the ASCII table format with dashes (`-`) and pipes (`|`)
@@ -158,8 +155,8 @@ Based on actual PLC sequences documented in `operation_table.md`:
 
 **Control Intervals:**
 - Data collection: 1-minute cycle
-- Bi-LSTM prediction: 5-minute cycle
-- PSO optimization: 30-minute cycle
+- TCN prediction: 5-minute cycle (NPU 가속, 0.8~1.2초)
+- PSO optimization: 30-minute cycle (CPU, ~45초)
 - Sensor maintenance: Weekly (DO), Semi-weekly (pH)
 
 ### Implementation Phases
@@ -182,6 +179,14 @@ When working with this repository, focus on maintaining technical accuracy, pres
 
 ## Technical Terms Reference
 
+**AI 모델 관련:**
+- **TCN**: Temporal Convolutional Network (시간 합성곱 신경망) - Hailo NPU 호환
+- **Dilated Conv**: 확장 합성곱 - 넓은 receptive field 확보를 위한 기법
+- **PSO**: Particle Swarm Optimization (입자군 최적화)
+- **MAPE**: Mean Absolute Percentage Error (예측 정확도 지표)
+- **HEF**: Hailo Executable Format (Hailo NPU 모델 포맷)
+
+**수처리 관련:**
 - **DAF**: Dissolved Air Flotation (가압부상조)
 - **MBR**: Membrane Bioreactor (분리막조)
 - **EC-MBR**: Electrocoagulation + MBR (전기응집 결합형 MBR)
@@ -190,12 +195,12 @@ When working with this repository, focus on maintaining technical accuracy, pres
 - **F/M Ratio**: Food-to-Microorganism ratio (부하율)
 - **HRT**: Hydraulic Retention Time (체류시간)
 - **SRT**: Solids Retention Time (고형물 체류시간)
+
+**시스템 관련:**
 - **TMS**: Tele-Monitoring System (원격모니터링 - 환경부 연동)
 - **SCADA**: Supervisory Control and Data Acquisition
 - **Feed-forward Control**: 사전 제어 (predictive/proactive control based on influent)
 - **Feedback Control**: 사후 제어 (reactive control based on effluent)
-- **MAPE**: Mean Absolute Percentage Error (예측 정확도 지표)
-- **HEF**: Hailo Executable Format (Hailo NPU 모델 포맷)
 - **OTA**: Over-The-Air (원격 업데이트)
 
 ## Document Navigation
@@ -204,9 +209,8 @@ When working with this repository, focus on maintaining technical accuracy, pres
 
 **주요 문서:**
 - `README.md` - 프로젝트 개요, 3-Tier 아키텍처, 문서 네비게이션
-- `PRD.md` - 소프트웨어 요구사항, 디렉토리 구조
-- `TechArc.md` - 상세 기술 아키텍처 (4-Layer, Feed-forward 구현)
-- `project.md` - R&D 제안서 (예산, 일정, KPI)
+- `PRD.md` - 통합 PRD (시스템 아키텍처, AI 모델, 제어 시스템, 개발 일정)
+- `operation_table.md` - PLC 제어 시퀀스, 인터락 조건
 
 
 ## 중요사항: 답변은 항상 한국어로 해줄것!

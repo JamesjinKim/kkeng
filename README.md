@@ -10,10 +10,13 @@
 
 | 기술 | 역할 | 성능 목표 |
 |------|------|----------|
-| **Bi-LSTM + Attention** | 6시간 선행 수질 예측 | MAPE < 10% |
+| **TCN (Temporal Convolutional Network)** | 6시간 선행 수질 예측 | MAPE < 10% |
 | **PSO 최적화** | 비용 최소화 제어 파라미터 탐색 | 전력비 15% 절감 |
 | **Feed-forward 제어** | 유입 기반 사전 대응 (vs 사후 Feedback) | 수질 위반 0회/년 |
-| **Edge AI (Hailo NPU)** | 현장 실시간 추론 | 추론 1~2초 |
+| **Edge AI (Hailo-8L NPU)** | 현장 실시간 추론 | 추론 0.8~1.2초 |
+
+> **TCN 채택 이유**: Hailo-8L NPU가 LSTM/GRU를 지원하지 않아 Conv1D 기반 TCN으로 대체.
+> NPU 가속으로 기존 LSTM 대비 10배 빠른 추론 (8~12초 → 0.8~1.2초)
 
 ---
 
@@ -24,7 +27,7 @@
 │                       3-Tier 하이브리드 아키텍처                       │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  Tier 1: Edge (데이터 수집)                          비용: ~$150     │
+│  Tier 1: Edge (데이터 수집)                                         │
 │  ┌───────────────────────────────────────────────────────────────┐ │
 │  │ • Raspberry Pi 5 (4GB) - 센서 데이터 1분 주기 수집              │ │
 │  │ • QA/QC 전처리, 24시간 로컬 버퍼                                │ │
@@ -32,15 +35,15 @@
 │  └──────────────────────────┬────────────────────────────────────┘ │
 │                             │ MQTT                                  │
 │                             ▼                                       │
-│  Tier 2: Gateway (AI 추론 + 데이터 관리)              비용: ~$300     │
+│  Tier 2: Gateway (AI 추론 + 데이터 관리)                             │
 │  ┌───────────────────────────────────────────────────────────────┐ │
 │  │ • Mini PC + Hailo-8L NPU (13 TOPS)                             │ │
-│  │ • InfluxDB (장기 데이터), Grafana Dashboard                     │ │
-│  │ • Bi-LSTM 예측 (5분), PSO 최적화 (30분), Safety Layer           │ │
+│  │ • InfluxDB (장기 데이터), FastAPI + 커스텀 UI                   │ │
+│  │ • TCN 예측 (5분, NPU), PSO 최적화 (30분, CPU), Safety Layer    │ │
 │  └──────────────────────────┬────────────────────────────────────┘ │
 │                             │ Serial/GPIO                           │
 │                             ▼                                       │
-│  Tier 3: Control (액추에이터 제어)                    비용: ~$100     │
+│  Tier 3: Control (액추에이터 제어)                                   │
 │  ┌───────────────────────────────────────────────────────────────┐ │
 │  │ • ESP32 + 솔리드스테이트 릴레이 + Safety PLC (핵심 인터락)       │ │
 │  │ • 운전 모드: 무인자동 / 반자동 / 수동                           │ │
@@ -55,7 +58,7 @@
 | Tier | 하드웨어 | 주요 역할 | AI 역할 |
 |------|---------|----------|--------|
 | **Tier 1** | RPi 5 (4GB) | 센서 수집, QA/QC, 로컬 캐시 | Fallback Rule만 |
-| **Tier 2** | Mini PC + Hailo-8L | DB, AI 추론, PSO, Dashboard | **AI 추론 담당** |
+| **Tier 2** | Mini PC + Hailo-8L | DB, **TCN 추론**, PSO, Dashboard | **AI 추론 담당** |
 | **Tier 3** | ESP32 + 릴레이 + PLC | 액추에이터 직접 제어 | 없음 |
 
 ### 운전 모드
@@ -70,7 +73,7 @@
 
 ## 대상 시설
 
-- **금강엔지니어링 MBR 폐수처리시설**
+- **금강엔지니어링 EC-MBR 폐수처리시설**
 - 처리 용량: 200~500 m³/일
 - 기존 PLC: LS / Mitsubishi (Modbus TCP)
 
@@ -80,21 +83,9 @@
 
 | 문서 | 목적 | 대상 독자 |
 |------|------|----------|
-| [PRD.md](PRD.md) | 소프트웨어 요구사항 + 디렉토리 구조 | 개발자 |
-| [TechArc.md](TechArc.md) | 상세 기술 아키텍처 (4-Layer, Feed-forward 구현) | 기술 검토자 |
-| [project.md](project.md) | R&D 제안서 (예산, 일정, KPI) | 투자자, 정부기관 |
+| [PRD.md](PRD.md) | **통합 PRD** (아키텍처, AI 모델, 제어 시스템, 개발 일정) | 개발자, 기술 검토자 |
 | [operation_table.md](operation_table.md) | PLC 제어 시퀀스 및 인터락 | 현장 엔지니어 |
-| [AI적용방법.md](AI적용방법.md) | AI 적용 방법론 | 개발자 |
-
-### 참조 문서
-
-| 목적 | 참조 |
-|------|------|
-| 시스템 전체 아키텍처 이해 | `TechArc.md` |
-| 소프트웨어 요구사항 확인 | `PRD.md` |
-| PLC 제어 시퀀스 확인 | `operation_table.md` |
-| R&D 제안서 전체 | `project.md` |
-| 장비 사양 및 기능 | `각조및 장비의 기능표.md` |
+| [각조및 장비의 기능표.md](각조및%20장비의%20기능표.md) | 장비 사양 및 기능 | 현장 엔지니어 |
 
 ---
 
@@ -110,10 +101,26 @@
 
 ---
 
+## 기술 스택
+
+| 구분 | 기술 |
+|------|------|
+| AI 모델 | TCN (Temporal Convolutional Network) |
+| NPU 가속 | Hailo-8L (13 TOPS), INT8 양자화 |
+| 최적화 | PSO (Particle Swarm Optimization) |
+| 시계열 DB | InfluxDB / TimescaleDB |
+| Python 환경 | UV (가상환경 관리) |
+| API 백엔드 | FastAPI (비동기, 자동 문서화) |
+| 프론트엔드 | HTML/CSS/JavaScript |
+| PLC 통신 | Modbus TCP/RTU |
+
+---
+
 ## 기술 용어
 
 | 용어 | 설명 |
 |------|------|
+| **TCN** | Temporal Convolutional Network (시간 합성곱 신경망) - NPU 호환 |
 | **EC-MBR** | Electrocoagulation + MBR (전기응집 결합형 MBR) |
 | **Feed-forward** | 유입수 기반 사전 제어 (예측 기반) |
 | **Feedback** | 방류수 기반 사후 제어 (반응 기반) |
